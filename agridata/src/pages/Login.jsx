@@ -211,15 +211,19 @@ export default function Login() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px]" />
 
         <div className="relative z-10 flex flex-col justify-between p-16 xl:p-24 w-full">
-          <Link to="/" className="flex items-center gap-3 w-fit group">
-            <div className="p-2.5 bg-emerald-600 rounded-xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
-              <Sprout size={24} className="text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold tracking-tight text-white leading-none">TANAW</span>
-              <span className="text-[9px] font-semibold text-emerald-400 tracking-[0.2em] uppercase mt-1">Systems</span>
-            </div>
-          </Link>
+          <Link to="/" className="flex items-center gap-2 w-fit group">
+  <div className="p-1 bg-transparent rounded-xl shrink-0 group-hover:scale-105 transition-transform">
+    <img
+      src="/logo.png"
+      alt="logo"
+      className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+    />
+  </div>
+  <div className="flex flex-col">
+    <span className="text-xl font-bold tracking-tight text-white leading-none">TANAW</span>
+    <span className="text-[9px] font-semibold text-emerald-400 tracking-[0.2em] uppercase mt-1">Systems</span>
+  </div>
+</Link>
 
           <div className="max-w-md">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-lg border border-white/10 mb-6 text-emerald-400">

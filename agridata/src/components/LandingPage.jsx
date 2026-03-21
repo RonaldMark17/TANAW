@@ -192,15 +192,19 @@ export default function LandingPage() {
       <nav className={`fixed top-0 w-full z-[1000] transition-all duration-300 border-b ${scrolled || mobileMenuOpen ? 'bg-white/95 backdrop-blur-md border-slate-200 py-3' : 'bg-transparent border-transparent py-4 sm:py-5'}`}>
         <div className="max-w-[1400px] mx-auto px-4 sm:px-8 flex items-center justify-between relative z-[1001]">
 
-          <div className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group">
-            <div className="p-1.5 sm:p-2 bg-emerald-600 rounded-lg sm:rounded-xl shadow-md shadow-emerald-600/20 shrink-0 group-hover:scale-105 transition-transform">
-              <Sprout className="text-white w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="flex flex-col shrink-0">
-              <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-none uppercase">TANAW</span>
-              <span className="text-[8px] sm:text-[10px] font-bold text-emerald-600 uppercase tracking-[0.25em] mt-0.5">System Hub</span>
-            </div>
-          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group">
+  <div className="p-1 sm:p-1.5 bg-transparent rounded-lg sm:rounded-xl shrink-0 group-hover:scale-105 transition-transform">
+    <img
+      src="/logo.png"
+      alt="logo"
+      className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+    />
+  </div>
+  <div className="flex flex-col shrink-0">
+    <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-none uppercase">TANAW</span>
+    <span className="text-[8px] sm:text-[10px] font-bold text-emerald-600 uppercase tracking-[0.25em] mt-0.5">System Hub</span>
+  </div>
+</div>
 
           <div className="hidden lg:flex items-center gap-6 xl:gap-10 text-[11px] font-bold uppercase tracking-widest text-slate-500">
             <a href="#features" className="hover:text-emerald-600 hover:-translate-y-0.5 transition-all">Tools</a>

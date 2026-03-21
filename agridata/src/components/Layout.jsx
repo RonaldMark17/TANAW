@@ -261,17 +261,26 @@ export default function Layout() {
         <aside className={`fixed inset-y-0 left-0 z-[110] bg-white dark:bg-[#041d18] text-slate-600 dark:text-white border-r border-slate-200 dark:border-white/5 shadow-2xl transition-all duration-500 lg:translate-x-0 lg:relative lg:flex lg:flex-col overflow-x-hidden ${sidebarOpen ? 'translate-x-0 w-72 sm:w-[280px]' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'lg:w-[90px]' : 'lg:w-72 xl:w-[280px]'}`}>
           <div className="flex flex-col h-full w-full">
             <div className={`h-16 sm:h-20 flex-shrink-0 flex items-center border-b border-slate-100 dark:border-white/5 transition-all duration-500 ${isCollapsed && !sidebarOpen ? 'justify-center' : 'px-5 sm:px-8 justify-between'}`}>
-              <div className="flex items-center gap-3">
-                <div className="p-2 sm:p-2.5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl shadow-lg shrink-0">
-                  <Sprout size={20} className="text-white sm:w-[22px] sm:h-[22px]" />
-                </div>
-                {(!isCollapsed || sidebarOpen) && (
-                  <div className="flex flex-col animate-in fade-in">
-                    <span className="text-base sm:text-lg font-bold leading-none text-slate-900 dark:text-white uppercase tracking-tighter">TANAW</span>
-                    <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-500 font-bold uppercase tracking-[0.2em] mt-0.5 sm:mt-1">Systems</span>
-                  </div>
-                )}
-              </div>
+              <div className="flex items-center gap-2">
+  <div className="p-1 bg-transparent rounded-xl shrink-0">
+    <img
+      src="/logo.png"
+      alt="logo"
+      className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+    />
+  </div>
+
+  {(!isCollapsed || sidebarOpen) && (
+    <div className="flex flex-col animate-in fade-in">
+      <span className="text-base sm:text-lg font-bold leading-none text-slate-900 dark:text-white uppercase tracking-tighter">
+        TANAW
+      </span>
+      <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-500 font-bold uppercase tracking-[0.2em] mt-0.5 sm:mt-1">
+        Systems
+      </span>
+    </div>
+  )}
+</div>
               
               <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-rose-500 transition-colors">
                 <X size={20} />
