@@ -15,7 +15,7 @@ const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.endsWith('/api') ? import.meta.env.VITE_API_URL : `${import.meta.env.VITE_API_URL}/api`;
   }
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8080/api' : 'https://TANAW.ct.ws/api';
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8080/api' : 'https://agridata.ct.ws/api';
 };
 const API_URL = getApiUrl();
 const getAuthToken = () => localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -265,9 +265,6 @@ export default function UnifiedPortal() {
     submitChat(currentMessage, e);
   };
 
-  // =======================================================================
-  // --- UPGRADED AI DOCTOR ANALYSIS (WITH INTELLIGENT LOCAL FALLBACK) ---
-  // =======================================================================
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -279,14 +276,14 @@ export default function UnifiedPortal() {
         // Search local experiences for reports tagged as "Challenge" or high impact issues
         const localChallenges = experiences.filter(exp => exp.experience_type === 'Challenge' || exp.impact_level === 'High' || exp.title.toLowerCase().includes('sakit') || exp.title.toLowerCase().includes('peste'));
         
-        let probableIssue = "Local Threat: Tungro Virus";
-        let traditionalAdvice = "Base sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
+        let probableIssue = "⚠️ Local Threat: Tungro Virus";
+        let traditionalAdvice = "⚠️ **[Local Pattern Match Engine]**: AI Server is unreachable. \n\nBase sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
 
         if (localChallenges.length > 0) {
             // Pick the most relevant local challenge to simulate AI pattern matching
             const localExp = localChallenges[0];
-            probableIssue = `Local Match: ${localExp.title}`;
-            traditionalAdvice = `Base sa nakaraang report ni **${localExp.farmer_name}** sa komunidad:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas at sundin ang hakbang ng inyong kapwa magsasaka.`;
+            probableIssue = `⚠️ Local Match: ${localExp.title}`;
+            traditionalAdvice = `⚠️ **[Local Pattern Match Engine]**: AI Server is unreachable. Naghahanap ng katulad na sintomas sa lokal na database...\n\nBase sa nakaraang report ni **${localExp.farmer_name}** sa komunidad:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas at sundin ang hakbang ng inyong kapwa magsasaka.`;
         }
 
         return { sakit: probableIssue, tradisyonal: traditionalAdvice, risk: "High (Estimated)" };
@@ -578,14 +575,39 @@ export default function UnifiedPortal() {
           )}
 
           {activeTab === 'mentor' && (
-            <div className="flex flex-col h-[650px] animate-in fade-in zoom-in-95 duration-500 relative">
+            <div className="flex flex-col lg:flex-row h-[650px] gap-6 animate-in fade-in zoom-in-95 duration-500 relative">
+              
+              {/* DESKTOP SIDEBAR: HISTORY & NEW CHAT */}
+              <div className="hidden lg:flex flex-col w-80 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5 p-6 shadow-inner shrink-0">
+                <button onClick={startNewChat} className="w-full py-4 mb-6 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                  <Plus size={16}/> {isFarmer ? 'Bagong Usapan' : 'New Conversation'}
+                </button>
+                
+                <div className="flex items-center gap-2 mb-4 px-2 text-slate-400">
+                  <History size={14}/> <span className="text-[10px] font-black uppercase tracking-widest">Chat History</span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar">
+                  {sessions.map(s => (
+                    <div key={s.id} onClick={() => setCurrentSessionId(s.id)} className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer border transition-all ${s.id === currentSessionId ? 'bg-white dark:bg-[#0b241f] border-emerald-200 dark:border-emerald-500/30 shadow-sm' : 'bg-transparent border-transparent hover:bg-white dark:hover:bg-white/5 text-slate-500 dark:text-slate-400'}`}>
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <MessageSquare size={14} className={s.id === currentSessionId ? 'text-emerald-600 dark:text-emerald-400 shrink-0' : 'shrink-0'} />
+                        <span className={`text-xs font-bold truncate ${s.id === currentSessionId ? 'text-emerald-800 dark:text-emerald-300' : ''}`}>{s.title}</span>
+                      </div>
+                      <button onClick={(e) => deleteSession(s.id, e)} className="text-slate-300 hover:text-rose-500 transition-colors p-2"><Trash2 size={14}/></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* MOBILE OVERLAY */}
               {isHistoryOpen && (
-                <div className="absolute inset-y-0 left-0 z-50 w-full sm:w-80 bg-white dark:bg-[#0b241f] animate-in slide-in-from-left duration-300 rounded-[2rem] sm:rounded-[3rem] border border-slate-100 dark:border-white/10 shadow-2xl flex flex-col p-6 sm:p-8">
+                <div className="absolute inset-y-0 left-0 z-50 w-full sm:w-80 bg-white dark:bg-[#0b241f] animate-in slide-in-from-left duration-300 rounded-[2rem] sm:rounded-[3rem] border border-slate-100 dark:border-white/10 shadow-2xl flex flex-col p-6 sm:p-8 lg:hidden">
                   <div className="flex items-center justify-between mb-8 border-b border-slate-100 dark:border-white/5 pb-4">
-                    <h3 className="font-black uppercase tracking-[0.2em] text-slate-400 text-[10px] flex items-center gap-2"><History size={16}/> {isFarmer ? 'Mga Usapan' : 'Past Sessions'}</h3>
+                    <h3 className="font-black uppercase tracking-[0.2em] text-slate-400 text-[10px] flex items-center gap-2"><History size={16}/> {isFarmer ? 'Mga Usapan' : 'Chat History'}</h3>
                     <button onClick={() => setIsHistoryOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors bg-slate-50 dark:bg-white/5 rounded-xl"><CloseIcon size={20}/></button>
                   </div>
-                  <button onClick={startNewChat} className="w-full py-4 mb-6 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"><Plus size={16}/> {isFarmer ? 'Bagong Usapan' : 'New Chat'}</button>
+                  <button onClick={() => { startNewChat(); setIsHistoryOpen(false); }} className="w-full py-4 mb-6 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"><Plus size={16}/> {isFarmer ? 'Bagong Usapan' : 'New Chat'}</button>
                   <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar">
                     {sessions.map(s => (
                       <div key={s.id} onClick={() => { setCurrentSessionId(s.id); setIsHistoryOpen(false); }} className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer border transition-all ${s.id === currentSessionId ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30' : 'bg-slate-50 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10 text-slate-700 dark:text-slate-300'}`}>
@@ -600,54 +622,56 @@ export default function UnifiedPortal() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsHistoryOpen(true)} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 text-slate-400 hover:text-emerald-600 transition-colors shadow-inner"><History size={20}/></button>
-                  <div className="flex flex-col">
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{isFarmer ? 'AI Mentor' : 'Pamana AI'}</h2>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Intelligent Knowledge Retrieval</span>
+              <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setIsHistoryOpen(true)} className="lg:hidden p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 text-slate-400 hover:text-emerald-600 transition-colors shadow-inner"><Menu size={20}/></button>
+                    <div className="flex flex-col">
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{isFarmer ? 'AI Mentor' : 'Pamana AI'}</h2>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Intelligent Knowledge Retrieval</span>
+                    </div>
+                  </div>
+                  <div className={`hidden sm:flex px-4 py-1.5 text-[9px] sm:text-[10px] font-black rounded-full items-center gap-2 uppercase tracking-widest border ${isFarmer ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'}`}>
+                    <ShieldCheck size={14}/> {isFarmer ? 'COMMUNITY WISDOM' : 'GROUNDED ARCHIVES'}
                   </div>
                 </div>
-                <div className={`hidden sm:flex px-4 py-1.5 text-[9px] sm:text-[10px] font-black rounded-full items-center gap-2 uppercase tracking-widest border ${isFarmer ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'}`}>
-                  <ShieldCheck size={14}/> {isFarmer ? 'COMMUNITY WISDOM' : 'GROUNDED ARCHIVES'}
-                </div>
-              </div>
 
-              <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar mb-6 bg-slate-50/50 dark:bg-black/10 rounded-[2rem] p-6 border border-slate-100 dark:border-white/5 shadow-inner">
-                {currentSession.history.map((chat, i) => (
-                  <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[75%] p-5 sm:p-6 rounded-[2rem] text-sm sm:text-base font-medium leading-relaxed shadow-sm ${chat.role === 'user' ? (isFarmer ? 'bg-emerald-600' : 'bg-indigo-600') + ' text-white rounded-br-none' : 'bg-white dark:bg-[#041d18] text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-white/5'}`}>
-                      <div dangerouslySetInnerHTML={chat.role === 'ai' ? formatAIText(chat.text, isFarmer) : undefined}>{chat.role === 'user' ? chat.text : undefined}</div>
+                <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar mb-6 bg-slate-50/50 dark:bg-black/10 rounded-[2rem] p-6 border border-slate-100 dark:border-white/5 shadow-inner">
+                  {currentSession.history.map((chat, i) => (
+                    <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] sm:max-w-[75%] p-5 sm:p-6 rounded-[2rem] text-sm sm:text-base font-medium leading-relaxed shadow-sm ${chat.role === 'user' ? (isFarmer ? 'bg-emerald-600' : 'bg-indigo-600') + ' text-white rounded-br-none' : 'bg-white dark:bg-[#041d18] text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-white/5'}`}>
+                        <div dangerouslySetInnerHTML={chat.role === 'ai' ? formatAIText(chat.text, isFarmer) : undefined}>{chat.role === 'user' ? chat.text : undefined}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-white dark:bg-[#041d18] p-5 sm:p-6 rounded-[2rem] rounded-tl-none flex items-center gap-3 text-slate-400 font-bold border border-slate-100 dark:border-white/5 shadow-sm">
-                      <Loader2 size={18} className="animate-spin text-emerald-500" />
-                      <span className="text-xs uppercase tracking-widest animate-pulse">{isFarmer ? 'Nag-iisip...' : 'Thinking...'}</span>
+                  ))}
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-white dark:bg-[#041d18] p-5 sm:p-6 rounded-[2rem] rounded-tl-none flex items-center gap-3 text-slate-400 font-bold border border-slate-100 dark:border-white/5 shadow-sm">
+                        <Loader2 size={18} className="animate-spin text-emerald-500" />
+                        <span className="text-xs uppercase tracking-widest animate-pulse">{isFarmer ? 'Nag-iisip...' : 'Thinking...'}</span>
+                      </div>
                     </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {currentSession.history.length <= 1 && !isTyping && (
+                  <div className="flex flex-wrap gap-2 mb-4 animate-in slide-in-from-bottom-2">
+                    {quickPrompts.map((prompt, idx) => (
+                      <button key={idx} onClick={() => executePrompt(prompt)} className="px-4 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors shadow-sm">{prompt}</button>
+                    ))}
                   </div>
                 )}
-                <div ref={chatEndRef} />
+
+                <form onSubmit={handleSendMessage} className="flex gap-3 bg-white dark:bg-[#0b241f] p-2 rounded-[2rem] border border-slate-200 dark:border-white/10 shadow-sm relative z-10">
+                  <div className="flex-1 relative">
+                    <input type="text" value={currentMessage} onChange={(e) => setCurrentMessage(e.target.value)} placeholder={isFarmer ? "Magtanong po dito..." : "Ask the archives..."} className="w-full h-full pl-6 pr-4 bg-transparent border-none text-sm font-bold outline-none text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" />
+                  </div>
+                  <button type="submit" disabled={isTyping || !currentMessage.trim()} className={`p-4 sm:p-5 text-white rounded-[1.5rem] shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shrink-0 ${isFarmer ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
+                    <Send size={20} className="sm:w-[24px] sm:h-[24px]" />
+                  </button>
+                </form>
               </div>
-
-              {currentSession.history.length <= 1 && !isTyping && (
-                <div className="flex flex-wrap gap-2 mb-4 animate-in slide-in-from-bottom-2">
-                  {quickPrompts.map((prompt, idx) => (
-                    <button key={idx} onClick={() => executePrompt(prompt)} className="px-4 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors shadow-sm">{prompt}</button>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={handleSendMessage} className="flex gap-3 bg-white dark:bg-[#0b241f] p-2 rounded-[2rem] border border-slate-200 dark:border-white/10 shadow-sm relative z-10">
-                <div className="flex-1 relative">
-                  <input type="text" value={currentMessage} onChange={(e) => setCurrentMessage(e.target.value)} placeholder={isFarmer ? "Magtanong po dito..." : "Ask the archives..."} className="w-full h-full pl-6 pr-4 bg-transparent border-none text-sm font-bold outline-none text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" />
-                </div>
-                <button type="submit" disabled={isTyping || !currentMessage.trim()} className={`p-4 sm:p-5 text-white rounded-[1.5rem] shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shrink-0 ${isFarmer ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
-                  <Send size={20} className="sm:w-[24px] sm:h-[24px]" />
-                </button>
-              </form>
             </div>
           )}
 
