@@ -73,8 +73,8 @@ export default function UnifiedPortal() {
       history: [{ 
         role: 'ai', 
         text: isFarmer 
-          ? "Magandang araw! Ako ang iyong AI Mentor. Handa akong magbahagi ng kaalaman mula sa ating mga kasamahan. Ano ang iyong katanungan?" 
-          : "Welcome to the Legacy Portal. I am your Pamana AI. I have digitized the field notes of your parent. What would you like to learn today?" 
+          ? "Magandang araw! Ako si Binhi AI, ang iyong AI Mentor. Handa akong magbahagi ng kaalaman mula sa ating mga kasamahan. Ano ang iyong katanungan?" 
+          : "Welcome to the Legacy Portal. I am Binhi AI, acting as your Pamana AI. I have digitized the field notes of your parent. What would you like to learn today?" 
       }]
     }];
   });
@@ -191,7 +191,12 @@ export default function UnifiedPortal() {
     const newSession = {
       id: Date.now(),
       title: isFarmer ? 'Bagong Usapan' : 'New Discussion',
-      history: [{ role: 'ai', text: isFarmer ? "Handa na ako. Ano ang iyong itatanong po?" : "New session started. How can I assist your agricultural education?" }]
+      history: [{ 
+        role: 'ai', 
+        text: isFarmer 
+          ? "Magandang araw! Ako si Binhi AI, ang iyong AI Mentor. Handa akong magbahagi ng kaalaman mula sa ating mga kasamahan. Ano ang iyong katanungan?" 
+          : "Welcome to the Legacy Portal. I am Binhi AI, acting as your Pamana AI. I have digitized the field notes of your parent. What would you like to learn today?" 
+      }]
     };
     setSessions([newSession, ...sessions]);
     setCurrentSessionId(newSession.id);
@@ -214,41 +219,8 @@ export default function UnifiedPortal() {
     }, 50);
   };
 
-  // --- NATIVE LOCAL ENGINE FOR MENTOR CHAT ---
-  const generateLocalResponse = (query, isFarmer, localArchives) => {
-    const q = query.toLowerCase().trim();
-
-    // ==========================================
-    // 1. EXACT MATCHES FOR QUICK PROMPTS
-    // ==========================================
-
-    // MENTEE PROMPTS
-    if (q === "what was my parent's top yield strategy?" || q.includes("top yield strategy")) {
-        return `Based on the recurring patterns in your parent's field notes, their top yield strategy involved **precise timing of fertilizer application** during the vegetative stage and strict water management just before flowering. They also frequently highlighted **crop rotation** (planting legumes after rice) to naturally restore soil nutrients without spending extra on chemicals.`;
-    }
-    if (q === "how to deal with droughts based on archives?" || q.includes("droughts based on archives") || q.includes("deal with droughts")) {
-        return `According to your family archives, the most effective drought mitigation involved early preparation. Your parent emphasized **deepening irrigation canals** to retain water longer, switching to **drought-tolerant seed varieties** early in the dry season, and applying **organic mulch** (like rice straw) to the soil surface to significantly reduce moisture evaporation during extreme heat.`;
-    }
-    if (q === "best practices for soil health?" || q.includes("soil health")) {
-        return `The archives heavily emphasize organic matter. The best practices recorded include **incorporating rice straw back into the soil** instead of burning it, using **vermicast or animal manure** as a base fertilizer before planting, and allowing the soil to rest for at least a month between planting seasons to naturally recover its micro-ecosystem.`;
-    }
-
-    // FARMER PROMPTS
-    if (q === "paano maiiwasan ang peste sa palay?" || q.includes("peste sa palay")) {
-        return `Ayon sa ating offline agricultural database, maiiwasan ang pagdami ng peste sa pamamagitan ng **'synchronous planting' o sabayang pagtatanim** ng buong komunidad (sa loob ng 1-2 buwan) para hindi maipon at magpalipat-lipat ang peste sa mga bukid. Ugaliin din ang paglinis ng mga damo sa pilapil na madalas pamahayan ng mga insekto.`;
-    }
-    if (q === "ano ang tamang oras ng pag-abono?" || q.includes("oras ng pag-abono")) {
-        return `Ang pinakamainam na oras ng pag-abono ay sa **umaga (bago mag-8:00 AM)** o sa **hapon (pagkalipas ng 4:00 PM)**. Kapag nag-abono ka sa tirik na araw, mabilis sisingaw ang Nitrogen paitaas at masasayang lang ang iyong puhunan. Siguraduhin ding may sapat na tubig ang bukid ngunit hindi umaapaw bago magsabog ng pataba.`;
-    }
-    if (q === "kailan magandang magtanim ng mais?" || q.includes("magtanim ng mais")) {
-        return `Magandang magtanim ng mais kapag may sapat na ulan para sa pagpapatubo, ngunit hindi binabaha ang lupa. Kadalasan, ito ay itinatanim sa **Mayo hanggang Hunyo** (Wet Season) o **Oktubre hanggang Nobyembre** (Dry Season). Tiyaking may maayos na 'drainage' o daanan ng tubig ang iyong bukid dahil mabilis mamatay ang mais kapag nababad ang ugat nito sa tubig.`;
-    }
-
-
-    // ==========================================
-    // 2. DYNAMIC SEARCH IN LOCAL ARCHIVES
-    // ==========================================
-    const searchTerms = q.split(' ').filter(w => w.length > 3);
+  const generateFallbackResponse = (query, isFarmer, localArchives) => {
+    const searchTerms = query.toLowerCase().split(' ').filter(w => w.length > 3);
     let bestMatch = null;
     let highestScore = 0;
 
@@ -261,40 +233,35 @@ export default function UnifiedPortal() {
 
     if (bestMatch && highestScore > 0) {
         return isFarmer
-            ? `Base sa ating lokal na database, narito ang karanasan ni **${bestMatch.farmer_name}**:\n\n"${bestMatch.description}"`
-            : `I scanned the family archives. Based on your parent's (**${bestMatch.farmer_name}**) field notes:\n\n"${bestMatch.description}"`;
+            ? `⚠️ **[Binhi AI - Local Mode]**: Nahanap ko ito sa ating offline records:\n\n**Ayon kay ${bestMatch.farmer_name}**: "${bestMatch.description}"`
+            : `⚠️ **[Binhi AI - Local Mode]**: Connecting to offline archives...\n\n**Based on your parent's (${bestMatch.farmer_name}) notes**: "${bestMatch.description}"`;
     }
 
-    // ==========================================
-    // 3. GENERAL KNOWLEDGE FALLBACK
-    // ==========================================
+    const q = query.toLowerCase();
     if (q.includes('peste') || q.includes('insekto') || q.includes('pest') || q.includes('bug') || q.includes('uod')) {
         return isFarmer 
-            ? "Para sa pag-iwas sa peste, panatilihing malinis ang paligid ng taniman upang walang pamahayan ang mga insekto. Maaaring gumamit ng neem oil spray bilang organikong lunas."
-            : "For general pest control, maintain clean surroundings to prevent breeding grounds. Neem oil spray is a widely used organic first response.";
+            ? "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Para sa pangkalahatang pag-iwas sa peste, panatilihing malinis ang paligid ng taniman upang walang pamahayan ang mga insekto. Maaaring gumamit ng neem oil spray bilang organikong lunas habang hinihintay nating bumalik ang internet."
+            : "⚠️ **[Binhi AI - Local Mode]**: (General Advice) For general pest control, maintain clean surroundings to prevent breeding grounds. Neem oil spray is a good organic first response.";
     }
     if (q.includes('abono') || q.includes('pataba') || q.includes('fertilizer') || q.includes('taba')) {
         return isFarmer
-            ? "Ang tamang pag-abono ay nakadepende sa yugto ng halaman. Kadalasan, kailangan ng mataas na Nitrogen sa paglaki (vegetative stage), at mataas na Potassium kapag namumulaklak o namumunga na."
-            : "Proper fertilization depends on the plant's stage. Generally, high Nitrogen is needed for leaf growth, while Potassium is crucial for the flowering and fruiting stages.";
+            ? "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Ang tamang pag-abono ay nakadepende sa yugto ng halaman. Kadalasan, kailangan ng mataas na Nitrogen sa paglaki (vegetative stage), at mataas na Potassium kapag namumulaklak o namumunga na."
+            : "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Proper fertilization depends on the plant's stage. Generally, high Nitrogen is needed for leaf growth, while Potassium is crucial for the flowering and fruiting stages.";
     }
     if (q.includes('tubig') || q.includes('dilig') || q.includes('water') || q.includes('tuyot')) {
         return isFarmer
-            ? "Pinakamainam ang pagdidilig sa madaling araw o hapon upang maiwasan ang mabilis na pag-evaporate ng tubig. Iwasan ang pagdidilig sa gabi upang hindi maging sanhi ng fungal diseases sa basang dahon."
-            : "Watering is best done in the early morning or late afternoon to minimize evaporation. Avoid night watering to prevent nocturnal fungal diseases on wet leaves.";
+            ? "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Pinakamainam ang pagdidilig sa madaling araw o hapon upang maiwasan ang mabilis na pag-evaporate ng tubig. Iwasan ang pagdidilig sa gabi upang hindi maging sanhi ng fungal diseases sa basang dahon."
+            : "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Watering is best done in the early morning or late afternoon to minimize evaporation. Avoid night watering to prevent nocturnal fungal diseases on wet leaves.";
     }
     if (q.includes('bagyo') || q.includes('ulan') || q.includes('storm') || q.includes('weather') || q.includes('baha')) {
         return isFarmer
-            ? "Kung may paparating na bagyo o malakas na ulan, anihin na ang mga maaari nang anihin. Siguraduhing malinis at malalim ang mga kanal (drainage) upang mabilis na humupa ang baha sa taniman."
-            : "If a storm or heavy rain is approaching, harvest mature crops immediately. Ensure all drainage canals are clear to prevent prolonged waterlogging.";
+            ? "⚠️ **[Binhi AI - Local Mode]**: (General Advice) Kung may paparating na bagyo o malakas na ulan, anihin na ang mga maaari nang anihin. Siguraduhing malinis at malalim ang mga kanal (drainage) upang mabilis na humupa ang baha sa taniman."
+            : "⚠️ **[Binhi AI - Local Mode]**: (General Advice) If a storm or heavy rain is approaching, harvest mature crops immediately. Ensure all drainage canals are clear to prevent prolonged waterlogging.";
     }
 
-    // ==========================================
-    // 4. ABSOLUTE FALLBACK (NO MATCH)
-    // ==========================================
     return isFarmer
-        ? "Wala akong makitang eksaktong tugma sa ating database para sa tanong na iyan. Maaari mong subukang ibahin ang tanong, o magtanong tungkol sa mga pangunahing paksa gaya ng: **Peste, Pataba, Pagdidilig, o Panahon**."
-        : "I couldn't find a specific entry in the archives regarding that. Try asking me general questions about farming basics like: **Pests, Fertilizer, Watering Schedules, or Weather Adaptation**.";
+        ? "⚠️ **[Binhi AI - Offline Mode]**: Nawalan po tayo ng koneksyon sa server, at wala akong nakitang tugma sa ating local records para sa inyong tanong. Gayunpaman, handa pa rin akong tumulong! Habang offline tayo, maaari nating pag-usapan ang mga pangunahing kaalaman sa **pagpuksa sa peste, tamang pag-aabono, pagdidilig, o paghahanda sa panahon**. Ano po ang nais ninyong malaman?"
+        : "⚠️ **[Binhi AI - Offline Mode]**: We've temporarily lost connection to the main network, and I couldn't find a specific entry in your parent's archives regarding that. But the legacy continues! While we wait for the signal, I can still share foundational farming wisdom. Try asking me general questions about **pest control, fertilization, watering schedules, or weather adaptation**.";
   };
 
   const submitChat = async (textToSubmit, e) => {
@@ -302,25 +269,70 @@ export default function UnifiedPortal() {
     const userText = textToSubmit.trim();
     if (!userText || isTyping) return;
 
+    if (!isOnline) {
+        const offlineMsg = generateFallbackResponse(userText, isFarmer, archivesToDisplay);
+
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { 
+            ...s, 
+            history: [...s.history, { role: 'user', text: userText }, { role: 'ai', text: offlineMsg }] 
+        } : s));
+        setCurrentMessage('');
+        return;
+    }
+
     const updatedHistory = [...currentSession.history, { role: 'user', text: userText }];
     
     setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: updatedHistory, title: s.title.includes('Usapan') || s.title.includes('Discussion') ? userText.substring(0, 20) + '...' : s.title } : s));
     setCurrentMessage('');
     setIsTyping(true);
 
-    // Completely Native Local Engine Processing (No Gemini API needed)
-    setTimeout(() => {
-        const localResponse = generateLocalResponse(userText, isFarmer, archivesToDisplay);
-        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: localResponse }] } : s));
-        setIsTyping(false);
-    }, 1200); // Simulate "thinking" delay for UI realism
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      const knowledgeBase = archivesToDisplay.map(exp => `[Note by ${exp.farmer_name} on ${new Date(exp.date_recorded).toLocaleDateString()}]: Title: ${exp.title} - ${exp.description}`).join('\n\n');
+
+      let parentName = "your parent";
+      if (isMentee && archivesToDisplay.length > 0) {
+          parentName = archivesToDisplay[0].farmer_name; 
+      }
+
+      const farmerPrompt = `You are "Binhi AI", acting as a "Wise Agricultural Mentor". Answer in Tagalog/Taglish. 
+      CRITICAL INSTRUCTIONS:
+      1. Your advice MUST be based STRICTLY on the provided community knowledge below. Do not invent or guess outside information.
+      2. Make your answer extremely EASY TO UNDERSTAND. Use simple everyday words, short sentences, and clear steps.
+      3. Always mention the name of the farmer whose experience you are quoting.
+      4. If the answer is not in the knowledge base, simply state that you don't have records for that specific question yet.
+      
+      Community Knowledge Base:
+      ${knowledgeBase}`;
+      
+      const menteePrompt = `You are "Binhi AI", acting as "Pamana AI", an agricultural legacy assistant. The user is asking about the farming experiences of their parent, ${parentName}. 
+      CRITICAL INSTRUCTIONS:
+      1. Answer lovingly, respectfully, and highly educationally in English/Taglish.
+      2. Base your answer STRICTLY on the following field notes left by their parent. Do not hallucinate or invent outside information.
+      3. Make the explanation VERY EASY TO UNDERSTAND, like a parent teaching their child. Use simple analogies and clear bullet points if helpful.
+      4. If the notes don't contain the answer, politely say you don't have a record of it in the family archive.
+      
+      Parent's Archives:
+      ${knowledgeBase}`;
+
+      const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        contents: [{ role: 'user', parts: [{ text: `${isFarmer ? farmerPrompt : menteePrompt}\n\nUser Question: ${userText}` }] }]
+      });
+
+      const aiText = response.data.candidates[0].content.parts[0].text;
+      setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: aiText }] } : s));
+    } catch (err) {
+      console.error("AI Mentor Chat Error:", err);
+      const fallbackText = generateFallbackResponse(userText, isFarmer, archivesToDisplay);
+      setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: fallbackText }] } : s));
+    } finally { setIsTyping(false); }
   }
 
   const handleSendMessage = async (e) => {
     submitChat(currentMessage, e);
   };
 
-  // --- NATIVE LOCAL ENGINE FOR DOCTOR IMAGE SCAN ---
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -331,22 +343,94 @@ export default function UnifiedPortal() {
         const localChallenges = archivesToDisplay.filter(exp => exp.experience_type === 'Challenge' || exp.impact_level === 'High' || exp.title.toLowerCase().includes('sakit') || exp.title.toLowerCase().includes('peste'));
         
         let probableIssue = "⚠️ Local Threat: Tungro Virus";
-        let traditionalAdvice = "Base sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
+        let traditionalAdvice = "⚠️ **[Binhi AI - Local Mode]**: AI Server is unreachable. \n\nBase sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
 
         if (localChallenges.length > 0) {
             const localExp = localChallenges[0];
-            probableIssue = `Pattern Match: ${localExp.title}`;
-            traditionalAdvice = `Base sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
+            probableIssue = `⚠️ Local Match: ${localExp.title}`;
+            traditionalAdvice = `⚠️ **[Binhi AI - Local Mode]**: AI Server is unreachable. Naghahanap ng katulad na sintomas sa lokal na database...\n\nBase sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
         }
 
         return { sakit: probableIssue, tradisyonal: traditionalAdvice, risk: "High (Estimated)" };
     };
 
-    // Completely Native Local Engine Processing (No Gemini API needed)
-    setTimeout(() => {
-        setDiagnosis(generateLocalDiagnosis());
-        setAnalyzing(false);
-    }, 2500); // Simulate "scanning" delay for UI realism
+    if (!isOnline) {
+        setTimeout(() => {
+            setDiagnosis(generateLocalDiagnosis());
+            setAnalyzing(false);
+        }, 1500);
+        return;
+    }
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyA-1V6jOiIJLSdON7Kwggr1359cv4MDNaE"; 
+      
+      const toBase64 = file => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = error => reject(error);
+      });
+
+      const base64Image = await toBase64(file);
+
+      const promptText = `
+        You are Binhi AI, a Master Agronomist and Plant Pathologist in the Philippines.
+        Meticulously analyze this crop image. Identify specific diseases, pest damage, or nutrient deficiencies.
+
+        Respond ONLY with a raw JSON object. Do NOT include markdown formatting like \`\`\`json.
+        Structure:
+        {
+          "sakit": "Scientific and Local name of the problem (e.g., 'Rice Tungro Disease', 'Nitrogen Deficiency', 'Fall Armyworm')",
+          "tradisyonal": "Provide a highly realistic, expert diagnosis in Tagalog/Taglish. Include: 1) The exact cause. 2) Traditional/Organic treatment (e.g., neem oil, wood ash, proper spacing). 3) Modern/Chemical intervention if severe. 4) Preventive measures for the next season.",
+          "risk": "Low, Medium, or High"
+        }
+        If the image is completely unrecognizable or not a plant:
+        {
+           "sakit": "Hindi Matukoy (Unrecognized)",
+           "tradisyonal": "Ang larawan ay hindi malinaw o hindi halaman. Mangyaring kumuha ng mas malapit at malinaw na litrato ng apektadong dahon, bunga, o tangkay.",
+           "risk": "Unknown"
+        }
+      `;
+
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          contents: [
+            {
+              parts: [
+                { text: promptText },
+                { inline_data: { mime_type: file.type, data: base64Image } }
+              ]
+            }
+          ]
+        },
+        {
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      const aiResponseText = response.data.candidates[0].content.parts[0].text;
+      
+      let cleanedJsonString = aiResponseText.trim();
+      if (cleanedJsonString.startsWith('```json')) {
+          cleanedJsonString = cleanedJsonString.substring(7);
+      } else if (cleanedJsonString.startsWith('```')) {
+          cleanedJsonString = cleanedJsonString.substring(3);
+      }
+      if (cleanedJsonString.endsWith('```')) {
+          cleanedJsonString = cleanedJsonString.substring(0, cleanedJsonString.length - 3);
+      }
+
+      const parsedDiagnosis = JSON.parse(cleanedJsonString);
+      setDiagnosis(parsedDiagnosis);
+
+    } catch (err) {
+      console.error("AI Doctor Error:", err);
+      setDiagnosis(generateLocalDiagnosis());
+    } finally { 
+      setAnalyzing(false); 
+    }
   };
 
   const calculateRisk = async () => {
