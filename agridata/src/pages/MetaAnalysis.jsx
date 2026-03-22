@@ -161,6 +161,7 @@ export default function Experiences() {
         impact_level: 'Medium',
         comments_enabled: true
     };
+    
     const handleUpdateVisibility = async (id, newVisibility) => {
         // Find the specific experience in our local state first
         const originalExperience = experiences.find(e => e.id === id);
@@ -662,6 +663,63 @@ export default function Experiences() {
             console.error("Failed to delete comment:", error);
             alert("Failed to delete comment.");
             fetchExperiences();
+        }
+    };
+
+    // --- BUG FIX: ADDED MISSING `handleToggleCommentLike` FUNCTION ---
+    const handleToggleCommentLike = async (commentId, e) => {
+        if (e) e.stopPropagation();
+        if (!selectedExperience) return;
+
+        // Find the specific comment
+        const commentIndex = selectedExperience.comments.findIndex(c => c.id === commentId);
+        if (commentIndex === -1) return;
+
+        const comment = selectedExperience.comments[commentIndex];
+        const currentlyLiked = comment.is_liked_by_me;
+
+        // 1. Optimistic Update (Immediate UI response)
+        const updatedComments = [...selectedExperience.comments];
+        updatedComments[commentIndex] = {
+            ...comment,
+            is_liked_by_me: !currentlyLiked,
+            likes_count: currentlyLiked ? Math.max(0, comment.likes_count - 1) : (comment.likes_count || 0) + 1
+        };
+
+        const updatedExperience = { ...selectedExperience, comments: updatedComments };
+        
+        setSelectedExperience(updatedExperience);
+        setExperiences(prev => prev.map(exp => exp.id === updatedExperience.id ? updatedExperience : exp));
+
+        // 2. Offline Check
+        if (!isOnline) {
+            try {
+                // Assuming offlineStore supports queuing nested routes like /api/experiences/{id}/comments/{id}/like
+                offlineStore.addToQueue({ experienceId: selectedExperience.id, commentId, action: 'toggleCommentLike' }, 'TOGGLE_COMMENT_LIKE', 'experiences');
+            } catch (err) {
+                console.warn("Could not save comment like to offline queue");
+            }
+            return;
+        }
+
+        // 3. Online Server Sync
+        try {
+            if (experiencesAPI.toggleCommentLike) {
+                await experiencesAPI.toggleCommentLike(selectedExperience.id, commentId);
+            } else {
+                console.error("experiencesAPI.toggleCommentLike is not defined in api.js");
+                throw new Error("Missing API method");
+            }
+        } catch (error) {
+            // Rollback UI if the server explicitly rejects it or if it 404s
+            console.error("Failed to sync comment like with server:", error);
+            
+            const revertedComments = [...selectedExperience.comments];
+            revertedComments[commentIndex] = comment; // Restore original state
+            const revertedExperience = { ...selectedExperience, comments: revertedComments };
+            
+            setSelectedExperience(revertedExperience);
+            setExperiences(prev => prev.map(exp => exp.id === revertedExperience.id ? revertedExperience : exp));
         }
     };
 
