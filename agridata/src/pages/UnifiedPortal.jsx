@@ -224,13 +224,13 @@ export default function UnifiedPortal() {
 
     // MENTEE PROMPTS
     if (q === "what was my parent's top yield strategy?" || q.includes("top yield strategy")) {
-        return `Scanning legacy archives... \n\nBased on the recurring patterns in your parent's field notes, their top yield strategy involved **precise timing of fertilizer application** during the vegetative stage and strict water management just before flowering. They also frequently highlighted **crop rotation** (planting legumes after rice) to naturally restore soil nutrients without spending extra on chemicals.`;
+        return `Based on the recurring patterns in your parent's field notes, their top yield strategy involved **precise timing of fertilizer application** during the vegetative stage and strict water management just before flowering. They also frequently highlighted **crop rotation** (planting legumes after rice) to naturally restore soil nutrients without spending extra on chemicals.`;
     }
     if (q === "how to deal with droughts based on archives?" || q.includes("droughts based on archives") || q.includes("deal with droughts")) {
-        return `Accessing climate adaptation notes... \n\nAccording to your family archives, the most effective drought mitigation involved early preparation. Your parent emphasized **deepening irrigation canals** to retain water longer, switching to **drought-tolerant seed varieties** early in the dry season, and applying **organic mulch** (like rice straw) to the soil surface to significantly reduce moisture evaporation during extreme heat.`;
+        return `According to your family archives, the most effective drought mitigation involved early preparation. Your parent emphasized **deepening irrigation canals** to retain water longer, switching to **drought-tolerant seed varieties** early in the dry season, and applying **organic mulch** (like rice straw) to the soil surface to significantly reduce moisture evaporation during extreme heat.`;
     }
     if (q === "best practices for soil health?" || q.includes("soil health")) {
-        return `Retrieving soil management records... \n\nThe archives heavily emphasize organic matter. The best practices recorded include **incorporating rice straw back into the soil** instead of burning it, using **vermicast or animal manure** as a base fertilizer before planting, and allowing the soil to rest for at least a month between planting seasons to naturally recover its micro-ecosystem.`;
+        return `The archives heavily emphasize organic matter. The best practices recorded include **incorporating rice straw back into the soil** instead of burning it, using **vermicast or animal manure** as a base fertilizer before planting, and allowing the soil to rest for at least a month between planting seasons to naturally recover its micro-ecosystem.`;
     }
 
     // FARMER PROMPTS
@@ -336,7 +336,7 @@ export default function UnifiedPortal() {
         if (localChallenges.length > 0) {
             const localExp = localChallenges[0];
             probableIssue = `Pattern Match: ${localExp.title}`;
-            traditionalAdvice = `Naghahanap ng katulad na sintomas sa lokal na database...\n\nBase sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
+            traditionalAdvice = `Base sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
         }
 
         return { sakit: probableIssue, tradisyonal: traditionalAdvice, risk: "High (Estimated)" };
