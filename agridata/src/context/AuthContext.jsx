@@ -53,7 +53,13 @@ export const AuthProvider = ({ children }) => {
           // 2. Server-side Verification (Background Sync)
           // OFFLINE FIX: Only attempt server verification if the device has internet
           if (navigator.onLine) {
-            const response = await authAPI.getCurrentUser();
+            // --- FIX: Pass custom config to bypass ngrok warning and handle timeouts gracefully ---
+            const response = await authAPI.getCurrentUser({
+                headers: {
+                    'ngrok-skip-browser-warning': 'true' // Bypass ngrok HTML intercept
+                },
+                timeout: 5000 // Reduce timeout so it doesn't hang for 15 seconds
+            });
             
             // Update with the latest data from the Database
             setUser(response.data);
@@ -63,11 +69,15 @@ export const AuthProvider = ({ children }) => {
           }
           
         } catch (error) {
-          console.error("Session verification failed:", error);
+          console.error("Session verification failed:", error.message || error);
 
-          // CRITICAL FIX: Only log out if the server is ALIVE and says the token is invalid (401/422).
-          // If error.response is undefined, the server is just restarting—DO NOT log out.
-          if (error.response && (error.response.status === 401 || error.response.status === 422)) {
+          // CRITICAL FIX: Distinguish between a real 401 (Invalid Token) and a Network/Timeout error
+          if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+              console.warn("Backend timed out. Keeping user logged in via cached session.");
+              // Do NOT call handleCleanup() here. The server is just slow/down.
+          } 
+          else if (error.response && (error.response.status === 401 || error.response.status === 422)) {
+            console.warn("Backend rejected token. Logging out.");
             handleCleanup();
           }
         }

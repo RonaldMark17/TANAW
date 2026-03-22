@@ -846,7 +846,30 @@ def create_app(config_name='development'):
             return jsonify({"error": str(e)}), 500
 
     # ============ Farmer Routes ============
+    @app.route('/api/farmer_children', methods=['GET'])
+    @jwt_required()
+    def get_farmer_children():
+        try:
+            # Query all records from your farmer_children table
+            # (Change 'FarmerChild' to whatever your actual SQLAlchemy model is named)
+            children_records = FarmerChild.query.all()
+            
+            # Convert the database records into a JSON list
+            result = []
+            for child in children_records:
+                result.append({
+                    "id": child.id,
+                    "farmer_id": child.farmer_id,
+                    "user_id": getattr(child, 'user_id', None), # Include user_id if you have it
+                    "name": getattr(child, 'name', None)        # Include name if you have it
+                })
+                
+            return jsonify({"status": "success", "data": result}), 200
 
+        except Exception as e:
+            print(f"Error fetching farmer_children: {e}")
+            return jsonify({"status": "error", "message": "Failed to fetch children records"}), 500
+    
     @app.route('/api/farmers', methods=['GET'])
     @jwt_required()
     def get_farmers():

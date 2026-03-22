@@ -39,7 +39,9 @@ export default function UnifiedPortal() {
   const [activeFilter, setActiveFilter] = useState('All'); 
 
   const [currentFarmer, setCurrentFarmer] = useState(null);
+  const [farmers, setFarmers] = useState([]);
   const [experiences, setExperiences] = useState([]);
+  const [farmerChildren, setFarmerChildren] = useState([]); // --- ADDED: To store farmer_children table
   const [loading, setLoading] = useState(true);
 
   // --- OFFLINE STATE TRACKING ---
@@ -112,13 +114,19 @@ export default function UnifiedPortal() {
       try {
         if (!isOnline) throw new Error("Offline");
 
-        const [fRes, eRes] = await Promise.all([
+        // --- UPDATED: Fetch farmer_children alongside farmers and experiences ---
+        const [fRes, eRes, childRes] = await Promise.all([
           farmersAPI.getAll({ per_page: 1000 }),
-          experiencesAPI.getAll({ per_page: 500 })
+          experiencesAPI.getAll({ per_page: 500 }),
+          axios.get(`${API_URL}/farmer_children`, { headers: { 'Authorization': `Bearer ${getAuthToken()}` } }).catch(() => ({ data: [] }))
         ]);
 
         const farmersData = fRes.data.farmers || [];
         const experiencesData = (eRes.data.experiences || []).filter(exp => exp.description);
+        const childrenData = childRes.data.data || childRes.data || [];
+
+        setFarmers(farmersData); 
+        setFarmerChildren(childrenData);
 
         if (user && isFarmer) {
           const matched = farmersData.find(f => (f.farmer_code?.toLowerCase() === user.username.toLowerCase()) || (user.username.toLowerCase() === `farmer_${f.id}`));
@@ -129,11 +137,16 @@ export default function UnifiedPortal() {
         // SAVE TO LOCAL CACHE
         offlineStore.saveData('portal_farmers', farmersData);
         offlineStore.saveData('portal_experiences', experiencesData);
+        offlineStore.saveData('portal_farmer_children', childrenData);
 
       } catch (err) {
         console.warn("Unified Portal: Loading data from offline cache.");
         const cachedFarmers = offlineStore.getCachedData('portal_farmers') || [];
         const cachedExps = offlineStore.getCachedData('portal_experiences') || [];
+        const cachedChildren = offlineStore.getCachedData('portal_farmer_children') || [];
+
+        setFarmers(cachedFarmers); 
+        setFarmerChildren(cachedChildren);
 
         if (user && isFarmer) {
           const matched = cachedFarmers.find(f => (f.farmer_code?.toLowerCase() === user.username.toLowerCase()) || (user.username.toLowerCase() === `farmer_${f.id}`));
@@ -150,6 +163,37 @@ export default function UnifiedPortal() {
   }, [currentFarmer]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [currentSession.history, isTyping]);
+
+  // =================================================================================
+  // --- BUG FIX: STRICT MENTEE/PARENT FILTERING (Using farmer_children table) ---
+  // =================================================================================
+  const archivesToDisplay = isMentee 
+    ? experiences.filter(exp => {
+        // 1. Find Taylor's record in the farmer_children table by matching her name/ID
+        const myChildRecord = farmerChildren.find(child => 
+            child.id == user?.id || 
+            child.id == user?.child_id ||
+            (child.name && user?.full_name && child.name.toLowerCase() === user.full_name.toLowerCase()) ||
+            (child.name && user?.username && child.name.toLowerCase() === user.username.toLowerCase())
+        );
+
+        // 2. Identify the Parent Farmer ID (e.g., 13 for Mike Nash)
+        const targetFarmerId = myChildRecord?.farmer_id || user?.farmer_id || user?.parent_id;
+        
+        if (!targetFarmerId) return false;
+
+        // 3. Direct Match: Check if the experience farmer_id perfectly matches Mike Nash's ID
+        if (exp.farmer_id == targetFarmerId) return true;
+
+        // 4. Cross-reference: If targetFarmerId is a user ID instead of a farmer profile ID, find the real farmer profile
+        if (farmers.length > 0) {
+            const parentProfile = farmers.find(f => f.user_id == targetFarmerId || f.id == targetFarmerId);
+            if (parentProfile && exp.farmer_id == parentProfile.id) return true;
+        }
+
+        return false;
+      })
+    : experiences;
 
   const startNewChat = () => {
     const newSession = {
@@ -190,7 +234,7 @@ export default function UnifiedPortal() {
         let bestMatch = null;
         let highestScore = 0;
 
-        experiences.forEach(exp => {
+        archivesToDisplay.forEach(exp => {
             let score = 0;
             const targetText = `${exp.title} ${exp.description}`.toLowerCase();
             searchTerms.forEach(term => { if (targetText.includes(term)) score++; });
@@ -199,11 +243,11 @@ export default function UnifiedPortal() {
 
         let offlineMsg = "";
         if (bestMatch && highestScore > 0) {
-            offlineMsg = `⚠️ **[Local Mode]**: Offline tayo ngayon, pero nahanap ko ito sa ating local records:\n\n**Mula kay ${bestMatch.farmer_name}**: "${bestMatch.description}"`;
+            offlineMsg = `Mula kay ${bestMatch.farmer_name}**: "${bestMatch.description}"`;
         } else {
             offlineMsg = isFarmer 
                 ? "⚠️ **[Local Mode]**: Wala tayong internet at wala akong mahanap na tugma sa ating offline records. Subukan muli kapag online na." 
-                : "⚠️ **[Local Mode]**: The AI Mentor is offline and no matching local records were found. Please reconnect.";
+                : "⚠️ **[Local Mode]**: The AI Mentor is offline and no matching local records were found in your family archive. Please reconnect.";
         }
 
         setSessions(prev => prev.map(s => s.id === currentSessionId ? { 
@@ -222,7 +266,9 @@ export default function UnifiedPortal() {
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const knowledgeBase = experiences.map(exp => `[Farmer: ${exp.farmer_name}] Title: ${exp.title} - ${exp.description}`).join('\n\n');
+      
+      // FIXED: Force the AI to read ONLY from archivesToDisplay so it doesn't leak other farmers' notes to Taylor
+      const knowledgeBase = archivesToDisplay.map(exp => `[Farmer: ${exp.farmer_name}] Title: ${exp.title} - ${exp.description}`).join('\n\n');
 
       const farmerPrompt = `You are a "Wise Agricultural Mentor". Answer in Tagalog/Taglish. Ground in: ${knowledgeBase}.`;
       const menteePrompt = `You are "Pamana AI". Answer in English/Taglish. Ground in: ${knowledgeBase}.`;
@@ -241,7 +287,7 @@ export default function UnifiedPortal() {
       let bestMatch = null;
       let highestScore = 0;
 
-      experiences.forEach(exp => {
+      archivesToDisplay.forEach(exp => {
           let score = 0;
           const targetText = `${exp.title} ${exp.description}`.toLowerCase();
           searchTerms.forEach(term => { if (targetText.includes(term)) score++; });
@@ -250,7 +296,7 @@ export default function UnifiedPortal() {
 
       let fallbackText = "";
       if (bestMatch && highestScore > 0) {
-          fallbackText = `⚠️ **[System Fallback]**: Nagka-error ang AI server. Ngunit base sa ating local database:\n\n**Ayon kay ${bestMatch.farmer_name}:** "${bestMatch.description}"`;
+          fallbackText = `Ayon kay ${bestMatch.farmer_name}:** "${bestMatch.description}"`;
       } else {
           fallbackText = isFarmer 
             ? "⚠️ **[System Error]**: Pasensya na, nagkaroon ng aberya ang server at wala rin akong makitang tugma sa ating local records. Pakisubukan muli maya-maya."
@@ -273,17 +319,16 @@ export default function UnifiedPortal() {
 
     // --- LOCAL FALLBACK GENERATOR ENGINE ---
     const generateLocalDiagnosis = () => {
-        // Search local experiences for reports tagged as "Challenge" or high impact issues
-        const localChallenges = experiences.filter(exp => exp.experience_type === 'Challenge' || exp.impact_level === 'High' || exp.title.toLowerCase().includes('sakit') || exp.title.toLowerCase().includes('peste'));
+        // FIXED: Only search the Mentee's specific archive
+        const localChallenges = archivesToDisplay.filter(exp => exp.experience_type === 'Challenge' || exp.impact_level === 'High' || exp.title.toLowerCase().includes('sakit') || exp.title.toLowerCase().includes('peste'));
         
         let probableIssue = "⚠️ Local Threat: Tungro Virus";
-        let traditionalAdvice = "⚠️ **[Local Pattern Match Engine]**: AI Server is unreachable. \n\nBase sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
+        let traditionalAdvice = "Base sa aming 'Active Threats' dashboard, mataas ang kaso ng Tungro Virus sa inyong komunidad. Panatilihing malinis ang palayan at sugpuin ang mga green leafhoppers.";
 
         if (localChallenges.length > 0) {
-            // Pick the most relevant local challenge to simulate AI pattern matching
             const localExp = localChallenges[0];
             probableIssue = `⚠️ Local Match: ${localExp.title}`;
-            traditionalAdvice = `⚠️ **[Local Pattern Match Engine]**: AI Server is unreachable. Naghahanap ng katulad na sintomas sa lokal na database...\n\nBase sa nakaraang report ni **${localExp.farmer_name}** sa komunidad:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas at sundin ang hakbang ng inyong kapwa magsasaka.`;
+            traditionalAdvice = `Base sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
         }
 
         return { sakit: probableIssue, tradisyonal: traditionalAdvice, risk: "High (Estimated)" };
@@ -411,10 +456,6 @@ export default function UnifiedPortal() {
     } catch (err) { alert("Calculation failed."); } 
     finally { setIsCalculatingRisk(false); }
   };
-
-  const archivesToDisplay = isMentee 
-    ? experiences.filter(exp => exp.farmer_id === user?.parent_id || exp.farmer_id === user?.farmer_id)
-    : experiences;
 
   const groupedExperiences = archivesToDisplay.reduce((acc, exp) => {
     const type = exp.experience_type || 'General Wisdom';
