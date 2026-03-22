@@ -457,55 +457,55 @@ export default function Experiences() {
 
     // --- FIXED OFFLINE HANDLE SUBMIT ---
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setErrorMessage('');
+        e.preventDefault();
+        setSubmitting(true);
+        setErrorMessage('');
 
-    // Construct the payload immediately
-    const payload = {
-        ...formData,
-        context: `[Visibility: ${formData.visibility}] ${formData.context}`
-    };
+        // Construct the payload immediately
+        const payload = {
+            ...formData,
+            context: `[Visibility: ${formData.visibility}] ${formData.context}`
+        };
 
-    // 1. CHECK OFFLINE STATUS (Handles both Wi-Fi drop AND the "Force Offline" button)
-    if (!isOnline) {
+        // 1. CHECK OFFLINE STATUS (Handles both Wi-Fi drop AND the "Force Offline" button)
+        if (!isOnline) {
+            try {
+                offlineStore.addToQueue(payload, 'CREATE_EXPERIENCE', 'experiences');
+                alert("Record saved to phone. It will upload automatically when you turn off Offline Mode or reconnect.");
+                
+                // UI Cleanup
+                setShowCreateModal(false);
+                setFormData(initialFormState);
+            } catch (err) {
+                setErrorMessage("Local storage error: Could not save offline.");
+            } finally {
+                setSubmitting(false);
+            }
+            return;
+        }
+
+        // 2. ONLINE FLOW (Attempting to reach the server)
         try {
-            offlineStore.addToQueue(payload, 'CREATE_EXPERIENCE', 'experiences');
-            alert("Record saved to phone. It will upload automatically when you turn off Offline Mode or reconnect.");
+            await experiencesAPI.create(payload);
             
-            // UI Cleanup
+            // Refresh the list and close modal
+            fetchExperiences();
             setShowCreateModal(false);
             setFormData(initialFormState);
-        } catch (err) {
-            setErrorMessage("Local storage error: Could not save offline.");
+            alert("Experience recorded successfully!");
+        } catch (error) {
+            // 3. FALLBACK: Server is down or timed out even though Wi-Fi is "on"
+            console.error('Server unreachable, switching to offline queue:', error);
+            
+            offlineStore.addToQueue(payload, 'CREATE_EXPERIENCE', 'experiences');
+            alert("Server issue detected. We've safely backed up this record to your phone to prevent data loss.");
+            
+            setShowCreateModal(false);
+            setFormData(initialFormState);
         } finally {
             setSubmitting(false);
         }
-        return;
-    }
-
-    // 2. ONLINE FLOW (Attempting to reach the server)
-    try {
-        await experiencesAPI.create(payload);
-        
-        // Refresh the list and close modal
-        fetchExperiences();
-        setShowCreateModal(false);
-        setFormData(initialFormState);
-        alert("Experience recorded successfully!");
-    } catch (error) {
-        // 3. FALLBACK: Server is down or timed out even though Wi-Fi is "on"
-        console.error('Server unreachable, switching to offline queue:', error);
-        
-        offlineStore.addToQueue(payload, 'CREATE_EXPERIENCE', 'experiences');
-        alert("Server issue detected. We've safely backed up this record to your phone to prevent data loss.");
-        
-        setShowCreateModal(false);
-        setFormData(initialFormState);
-    } finally {
-        setSubmitting(false);
-    }
-};
+    };
 
     const handleToggleComments = async () => {
         if (!selectedExperience) return;
@@ -1344,7 +1344,7 @@ export default function Experiences() {
 
                                 {/* Core Content */}
                                 <div className="p-6 sm:p-10 bg-white dark:bg-[#041d18] space-y-6 sm:space-y-8 border-b border-slate-50 dark:border-white/5">
-                                    <p className="text-sm sm:text-base font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedExperience.description}</p>
+                                    <p className="text-sm sm:text-base font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-nowrap">{selectedExperience.description}</p>
 
                                     <div className="grid grid-cols-2 gap-4 p-5 sm:p-6 bg-slate-50 dark:bg-black/20 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-white/5">
                                         <div className="space-y-1 min-w-0">
