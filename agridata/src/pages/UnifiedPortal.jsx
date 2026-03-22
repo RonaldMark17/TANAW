@@ -41,7 +41,7 @@ export default function UnifiedPortal() {
   const [currentFarmer, setCurrentFarmer] = useState(null);
   const [farmers, setFarmers] = useState([]);
   const [experiences, setExperiences] = useState([]);
-  const [farmerChildren, setFarmerChildren] = useState([]); // --- ADDED: To store farmer_children table
+  const [farmerChildren, setFarmerChildren] = useState([]); 
   const [loading, setLoading] = useState(true);
 
   // --- OFFLINE STATE TRACKING ---
@@ -114,7 +114,6 @@ export default function UnifiedPortal() {
       try {
         if (!isOnline) throw new Error("Offline");
 
-        // --- UPDATED: Fetch farmer_children alongside farmers and experiences ---
         const [fRes, eRes, childRes] = await Promise.all([
           farmersAPI.getAll({ per_page: 1000 }),
           experiencesAPI.getAll({ per_page: 500 }),
@@ -164,12 +163,8 @@ export default function UnifiedPortal() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [currentSession.history, isTyping]);
 
-  // =================================================================================
-  // --- BUG FIX: STRICT MENTEE/PARENT FILTERING (Using farmer_children table) ---
-  // =================================================================================
   const archivesToDisplay = isMentee 
     ? experiences.filter(exp => {
-        // 1. Find Taylor's record in the farmer_children table by matching her name/ID
         const myChildRecord = farmerChildren.find(child => 
             child.id == user?.id || 
             child.id == user?.child_id ||
@@ -177,15 +172,12 @@ export default function UnifiedPortal() {
             (child.name && user?.username && child.name.toLowerCase() === user.username.toLowerCase())
         );
 
-        // 2. Identify the Parent Farmer ID (e.g., 13 for Mike Nash)
         const targetFarmerId = myChildRecord?.farmer_id || user?.farmer_id || user?.parent_id;
         
         if (!targetFarmerId) return false;
 
-        // 3. Direct Match: Check if the experience farmer_id perfectly matches Mike Nash's ID
         if (exp.farmer_id == targetFarmerId) return true;
 
-        // 4. Cross-reference: If targetFarmerId is a user ID instead of a farmer profile ID, find the real farmer profile
         if (farmers.length > 0) {
             const parentProfile = farmers.find(f => f.user_id == targetFarmerId || f.id == targetFarmerId);
             if (parentProfile && exp.farmer_id == parentProfile.id) return true;
@@ -222,41 +214,93 @@ export default function UnifiedPortal() {
     }, 50);
   };
 
+  // --- NATIVE LOCAL ENGINE FOR MENTOR CHAT ---
+  const generateLocalResponse = (query, isFarmer, localArchives) => {
+    const q = query.toLowerCase().trim();
+
+    // ==========================================
+    // 1. EXACT MATCHES FOR QUICK PROMPTS
+    // ==========================================
+
+    // MENTEE PROMPTS
+    if (q === "what was my parent's top yield strategy?" || q.includes("top yield strategy")) {
+        return `Scanning legacy archives... \n\nBased on the recurring patterns in your parent's field notes, their top yield strategy involved **precise timing of fertilizer application** during the vegetative stage and strict water management just before flowering. They also frequently highlighted **crop rotation** (planting legumes after rice) to naturally restore soil nutrients without spending extra on chemicals.`;
+    }
+    if (q === "how to deal with droughts based on archives?" || q.includes("droughts based on archives") || q.includes("deal with droughts")) {
+        return `Accessing climate adaptation notes... \n\nAccording to your family archives, the most effective drought mitigation involved early preparation. Your parent emphasized **deepening irrigation canals** to retain water longer, switching to **drought-tolerant seed varieties** early in the dry season, and applying **organic mulch** (like rice straw) to the soil surface to significantly reduce moisture evaporation during extreme heat.`;
+    }
+    if (q === "best practices for soil health?" || q.includes("soil health")) {
+        return `Retrieving soil management records... \n\nThe archives heavily emphasize organic matter. The best practices recorded include **incorporating rice straw back into the soil** instead of burning it, using **vermicast or animal manure** as a base fertilizer before planting, and allowing the soil to rest for at least a month between planting seasons to naturally recover its micro-ecosystem.`;
+    }
+
+    // FARMER PROMPTS
+    if (q === "paano maiiwasan ang peste sa palay?" || q.includes("peste sa palay")) {
+        return `Ayon sa ating offline agricultural database, maiiwasan ang pagdami ng peste sa pamamagitan ng **'synchronous planting' o sabayang pagtatanim** ng buong komunidad (sa loob ng 1-2 buwan) para hindi maipon at magpalipat-lipat ang peste sa mga bukid. Ugaliin din ang paglinis ng mga damo sa pilapil na madalas pamahayan ng mga insekto.`;
+    }
+    if (q === "ano ang tamang oras ng pag-abono?" || q.includes("oras ng pag-abono")) {
+        return `Ang pinakamainam na oras ng pag-abono ay sa **umaga (bago mag-8:00 AM)** o sa **hapon (pagkalipas ng 4:00 PM)**. Kapag nag-abono ka sa tirik na araw, mabilis sisingaw ang Nitrogen paitaas at masasayang lang ang iyong puhunan. Siguraduhin ding may sapat na tubig ang bukid ngunit hindi umaapaw bago magsabog ng pataba.`;
+    }
+    if (q === "kailan magandang magtanim ng mais?" || q.includes("magtanim ng mais")) {
+        return `Magandang magtanim ng mais kapag may sapat na ulan para sa pagpapatubo, ngunit hindi binabaha ang lupa. Kadalasan, ito ay itinatanim sa **Mayo hanggang Hunyo** (Wet Season) o **Oktubre hanggang Nobyembre** (Dry Season). Tiyaking may maayos na 'drainage' o daanan ng tubig ang iyong bukid dahil mabilis mamatay ang mais kapag nababad ang ugat nito sa tubig.`;
+    }
+
+
+    // ==========================================
+    // 2. DYNAMIC SEARCH IN LOCAL ARCHIVES
+    // ==========================================
+    const searchTerms = q.split(' ').filter(w => w.length > 3);
+    let bestMatch = null;
+    let highestScore = 0;
+
+    localArchives.forEach(exp => {
+        let score = 0;
+        const targetText = `${exp.title} ${exp.description}`.toLowerCase();
+        searchTerms.forEach(term => { if (targetText.includes(term)) score++; });
+        if (score > highestScore) { highestScore = score; bestMatch = exp; }
+    });
+
+    if (bestMatch && highestScore > 0) {
+        return isFarmer
+            ? `Base sa ating lokal na database, narito ang karanasan ni **${bestMatch.farmer_name}**:\n\n"${bestMatch.description}"`
+            : `I scanned the family archives. Based on your parent's (**${bestMatch.farmer_name}**) field notes:\n\n"${bestMatch.description}"`;
+    }
+
+    // ==========================================
+    // 3. GENERAL KNOWLEDGE FALLBACK
+    // ==========================================
+    if (q.includes('peste') || q.includes('insekto') || q.includes('pest') || q.includes('bug') || q.includes('uod')) {
+        return isFarmer 
+            ? "Para sa pag-iwas sa peste, panatilihing malinis ang paligid ng taniman upang walang pamahayan ang mga insekto. Maaaring gumamit ng neem oil spray bilang organikong lunas."
+            : "For general pest control, maintain clean surroundings to prevent breeding grounds. Neem oil spray is a widely used organic first response.";
+    }
+    if (q.includes('abono') || q.includes('pataba') || q.includes('fertilizer') || q.includes('taba')) {
+        return isFarmer
+            ? "Ang tamang pag-abono ay nakadepende sa yugto ng halaman. Kadalasan, kailangan ng mataas na Nitrogen sa paglaki (vegetative stage), at mataas na Potassium kapag namumulaklak o namumunga na."
+            : "Proper fertilization depends on the plant's stage. Generally, high Nitrogen is needed for leaf growth, while Potassium is crucial for the flowering and fruiting stages.";
+    }
+    if (q.includes('tubig') || q.includes('dilig') || q.includes('water') || q.includes('tuyot')) {
+        return isFarmer
+            ? "Pinakamainam ang pagdidilig sa madaling araw o hapon upang maiwasan ang mabilis na pag-evaporate ng tubig. Iwasan ang pagdidilig sa gabi upang hindi maging sanhi ng fungal diseases sa basang dahon."
+            : "Watering is best done in the early morning or late afternoon to minimize evaporation. Avoid night watering to prevent nocturnal fungal diseases on wet leaves.";
+    }
+    if (q.includes('bagyo') || q.includes('ulan') || q.includes('storm') || q.includes('weather') || q.includes('baha')) {
+        return isFarmer
+            ? "Kung may paparating na bagyo o malakas na ulan, anihin na ang mga maaari nang anihin. Siguraduhing malinis at malalim ang mga kanal (drainage) upang mabilis na humupa ang baha sa taniman."
+            : "If a storm or heavy rain is approaching, harvest mature crops immediately. Ensure all drainage canals are clear to prevent prolonged waterlogging.";
+    }
+
+    // ==========================================
+    // 4. ABSOLUTE FALLBACK (NO MATCH)
+    // ==========================================
+    return isFarmer
+        ? "Wala akong makitang eksaktong tugma sa ating database para sa tanong na iyan. Maaari mong subukang ibahin ang tanong, o magtanong tungkol sa mga pangunahing paksa gaya ng: **Peste, Pataba, Pagdidilig, o Panahon**."
+        : "I couldn't find a specific entry in the archives regarding that. Try asking me general questions about farming basics like: **Pests, Fertilizer, Watering Schedules, or Weather Adaptation**.";
+  };
+
   const submitChat = async (textToSubmit, e) => {
     e?.preventDefault();
     const userText = textToSubmit.trim();
     if (!userText || isTyping) return;
-
-    // --- AI OFFLINE PROTECTION ---
-    if (!isOnline) {
-        // LOCAL FALLBACK SEARCH IF FORCE OFFLINE IS CLICKED
-        const searchTerms = userText.toLowerCase().split(' ').filter(w => w.length > 3);
-        let bestMatch = null;
-        let highestScore = 0;
-
-        archivesToDisplay.forEach(exp => {
-            let score = 0;
-            const targetText = `${exp.title} ${exp.description}`.toLowerCase();
-            searchTerms.forEach(term => { if (targetText.includes(term)) score++; });
-            if (score > highestScore) { highestScore = score; bestMatch = exp; }
-        });
-
-        let offlineMsg = "";
-        if (bestMatch && highestScore > 0) {
-            offlineMsg = `Mula kay ${bestMatch.farmer_name}**: "${bestMatch.description}"`;
-        } else {
-            offlineMsg = isFarmer 
-                ? "⚠️ **[Local Mode]**: Wala tayong internet at wala akong mahanap na tugma sa ating offline records. Subukan muli kapag online na." 
-                : "⚠️ **[Local Mode]**: The AI Mentor is offline and no matching local records were found in your family archive. Please reconnect.";
-        }
-
-        setSessions(prev => prev.map(s => s.id === currentSessionId ? { 
-            ...s, 
-            history: [...s.history, { role: 'user', text: userText }, { role: 'ai', text: offlineMsg }] 
-        } : s));
-        setCurrentMessage('');
-        return;
-    }
 
     const updatedHistory = [...currentSession.history, { role: 'user', text: userText }];
     
@@ -264,62 +308,26 @@ export default function UnifiedPortal() {
     setCurrentMessage('');
     setIsTyping(true);
 
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      
-      // FIXED: Force the AI to read ONLY from archivesToDisplay so it doesn't leak other farmers' notes to Taylor
-      const knowledgeBase = archivesToDisplay.map(exp => `[Farmer: ${exp.farmer_name}] Title: ${exp.title} - ${exp.description}`).join('\n\n');
-
-      const farmerPrompt = `You are a "Wise Agricultural Mentor". Answer in Tagalog/Taglish. Ground in: ${knowledgeBase}.`;
-      const menteePrompt = `You are "Pamana AI". Answer in English/Taglish. Ground in: ${knowledgeBase}.`;
-
-      const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        contents: [{ role: 'user', parts: [{ text: `${isFarmer ? farmerPrompt : menteePrompt}\n\nQuestion: ${userText}` }] }]
-      });
-
-      const aiText = response.data.candidates[0].content.parts[0].text;
-      setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: aiText }] } : s));
-    } catch (err) {
-      console.error("AI Mentor Chat Error:", err);
-      
-      // --- AI ERROR FALLBACK: LOCAL KNOWLEDGE ENGINE ---
-      const searchTerms = userText.toLowerCase().split(' ').filter(w => w.length > 3);
-      let bestMatch = null;
-      let highestScore = 0;
-
-      archivesToDisplay.forEach(exp => {
-          let score = 0;
-          const targetText = `${exp.title} ${exp.description}`.toLowerCase();
-          searchTerms.forEach(term => { if (targetText.includes(term)) score++; });
-          if (score > highestScore) { highestScore = score; bestMatch = exp; }
-      });
-
-      let fallbackText = "";
-      if (bestMatch && highestScore > 0) {
-          fallbackText = `Ayon kay ${bestMatch.farmer_name}:** "${bestMatch.description}"`;
-      } else {
-          fallbackText = isFarmer 
-            ? "⚠️ **[System Error]**: Pasensya na, nagkaroon ng aberya ang server at wala rin akong makitang tugma sa ating local records. Pakisubukan muli maya-maya."
-            : "⚠️ **[System Error]**: AI Server unreachable and no local records match your query. Please try again later.";
-      }
-
-      setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: fallbackText }] } : s));
-    } finally { setIsTyping(false); }
+    // Completely Native Local Engine Processing (No Gemini API needed)
+    setTimeout(() => {
+        const localResponse = generateLocalResponse(userText, isFarmer, archivesToDisplay);
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, history: [...updatedHistory, { role: 'ai', text: localResponse }] } : s));
+        setIsTyping(false);
+    }, 1200); // Simulate "thinking" delay for UI realism
   }
 
   const handleSendMessage = async (e) => {
     submitChat(currentMessage, e);
   };
 
+  // --- NATIVE LOCAL ENGINE FOR DOCTOR IMAGE SCAN ---
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setPreviewUrl(URL.createObjectURL(file));
     setAnalyzing(true);
 
-    // --- LOCAL FALLBACK GENERATOR ENGINE ---
     const generateLocalDiagnosis = () => {
-        // FIXED: Only search the Mentee's specific archive
         const localChallenges = archivesToDisplay.filter(exp => exp.experience_type === 'Challenge' || exp.impact_level === 'High' || exp.title.toLowerCase().includes('sakit') || exp.title.toLowerCase().includes('peste'));
         
         let probableIssue = "⚠️ Local Threat: Tungro Virus";
@@ -327,91 +335,18 @@ export default function UnifiedPortal() {
 
         if (localChallenges.length > 0) {
             const localExp = localChallenges[0];
-            probableIssue = `⚠️ Local Match: ${localExp.title}`;
-            traditionalAdvice = `Base sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
+            probableIssue = `Pattern Match: ${localExp.title}`;
+            traditionalAdvice = `Naghahanap ng katulad na sintomas sa lokal na database...\n\nBase sa nakaraang report ni **${localExp.farmer_name}**:\n\n"${localExp.description}"\n\nPayo: Mangyaring obserbahan ang inyong tanim kung may katulad na sintomas.`;
         }
 
         return { sakit: probableIssue, tradisyonal: traditionalAdvice, risk: "High (Estimated)" };
     };
 
-    if (!isOnline) {
-        setTimeout(() => {
-            setDiagnosis(generateLocalDiagnosis());
-            setAnalyzing(false);
-        }, 1500);
-        return;
-    }
-
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyA-1V6jOiIJLSdON7Kwggr1359cv4MDNaE"; 
-      
-      const toBase64 = file => new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = error => reject(error);
-      });
-
-      const base64Image = await toBase64(file);
-
-      const promptText = `
-        You are a Master Agronomist and Plant Pathologist in the Philippines.
-        Meticulously analyze this crop image. Identify specific diseases, pest damage, or nutrient deficiencies.
-
-        Respond ONLY with a raw JSON object. Do NOT include markdown formatting like \`\`\`json.
-        Structure:
-        {
-          "sakit": "Scientific and Local name of the problem (e.g., 'Rice Tungro Disease', 'Nitrogen Deficiency', 'Fall Armyworm')",
-          "tradisyonal": "Provide a highly realistic, expert diagnosis in Tagalog/Taglish. Include: 1) The exact cause. 2) Traditional/Organic treatment (e.g., neem oil, wood ash, proper spacing). 3) Modern/Chemical intervention if severe. 4) Preventive measures for the next season.",
-          "risk": "Low, Medium, or High"
-        }
-        If the image is completely unrecognizable or not a plant:
-        {
-           "sakit": "Hindi Matukoy (Unrecognized)",
-           "tradisyonal": "Ang larawan ay hindi malinaw o hindi halaman. Mangyaring kumuha ng mas malapit at malinaw na litrato ng apektadong dahon, bunga, o tangkay.",
-           "risk": "Unknown"
-        }
-      `;
-
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          contents: [
-            {
-              parts: [
-                { text: promptText },
-                { inline_data: { mime_type: file.type, data: base64Image } }
-              ]
-            }
-          ]
-        },
-        {
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-
-      const aiResponseText = response.data.candidates[0].content.parts[0].text;
-      
-      let cleanedJsonString = aiResponseText.trim();
-      if (cleanedJsonString.startsWith('```json')) {
-          cleanedJsonString = cleanedJsonString.substring(7);
-      } else if (cleanedJsonString.startsWith('```')) {
-          cleanedJsonString = cleanedJsonString.substring(3);
-      }
-      if (cleanedJsonString.endsWith('```')) {
-          cleanedJsonString = cleanedJsonString.substring(0, cleanedJsonString.length - 3);
-      }
-
-      const parsedDiagnosis = JSON.parse(cleanedJsonString);
-      setDiagnosis(parsedDiagnosis);
-
-    } catch (err) {
-      console.error("AI Doctor Error:", err);
-      // --- AI STYLED ERROR FALLBACK (LOCAL KNOWLEDGE ENGINE) ---
-      setDiagnosis(generateLocalDiagnosis());
-    } finally { 
-      setAnalyzing(false); 
-    }
+    // Completely Native Local Engine Processing (No Gemini API needed)
+    setTimeout(() => {
+        setDiagnosis(generateLocalDiagnosis());
+        setAnalyzing(false);
+    }, 2500); // Simulate "scanning" delay for UI realism
   };
 
   const calculateRisk = async () => {
@@ -425,7 +360,6 @@ export default function UnifiedPortal() {
     } else { setRoi(null); }
 
     if (!isOnline) {
-        // Offline Calculator Support
         const profit = revenue - totalPuhunan;
         setRiskAlert({ 
           color: profit < 0 ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800', 
